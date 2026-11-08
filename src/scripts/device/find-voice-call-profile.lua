@@ -52,9 +52,7 @@ SimpleEventHook {
       return
     end
 
-    if not started then
-      return
-    end
+    local profile_prefix = "^Voice Call"
 
     local device = event:get_subject ()
     local dev_name = device.properties["device.name"] or ""
@@ -64,8 +62,14 @@ SimpleEventHook {
       log:debug (device, string.format (
           "Checking profile '%s': available == %s, priority == %d",
           profile.name, profile.available, profile.priority))
-      local found = string.find (profile.name, "^Voice Call")
-      if profile.available ~= "no" and found ~= nil then
+      local compatible
+      if started then
+        compatible = string.find (profile.name, profile_prefix) ~= nil
+      else
+        compatible = string.find (profile.name, profile_prefix) == nil
+      end
+
+      if profile.available ~= "no" and compatible then
         if (not selected_profile) or selected_profile.priority < profile.priority then
           selected_profile = profile
         end
@@ -73,9 +77,15 @@ SimpleEventHook {
     end
 
     if selected_profile then
+      local type_name
+      if started then
+        type_name = "calling start"
+      else
+        type_name = "calling end"
+      end
       log:info (device, string.format (
-          "Found calling profile '%s' (%d) for device %s",
-          selected_profile.name, selected_profile.index, dev_name))
+          "Found %s profile '%s' (%d) for device %s",
+          type_name, selected_profile.name, selected_profile.index, dev_name))
       event:set_data ("selected-profile", selected_profile)
     end
   end
